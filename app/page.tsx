@@ -2,10 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import Logo from "../public/logo.png"; // Adjust the logo path
+import Image from "next/image";
+import Logo from "../public/logo.png";
 
 const Login: React.FC = () => {
   const router = useRouter(); // Initialize router for navigation
@@ -22,49 +21,32 @@ const Login: React.FC = () => {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Mock login logic without using Axios
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    try {
-      const response = await axios.post(
-        "http://localhost/attendance/user.php?action=login",
-        formData
-      );
-      const data = response.data;
+    // Predefined admin credentials
+    const mockAdminCredentials = {
+      idNumber: "admin",
+      password: "123",
+    };
 
-      if (data.success) {
-        if (data.qr_data) {
-          // Store the student data in localStorage for future use in the dashboard
-          localStorage.setItem("studentData", JSON.stringify(data.qr_data));
-        }
-
-        // If login is successful, check the role and redirect accordingly
-        if (data.user.role === "student") {
-          router.push("/student"); // Redirect to student dashboard
-        } else if (data.user.role === "admin") {
-          router.push("/admin"); // Redirect to admin dashboard
-        } else if (data.user.role === "sbo") {
-          router.push("/sbo"); // Redirect to SBO dashboard
-        }
-      } else {
-        setError(data.error || "Unknown error occurred. Please try again.");
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("An error occurred during login. Please try again.");
+    // Validate login details
+    if (
+      formData.idNumber === mockAdminCredentials.idNumber &&
+      formData.password === mockAdminCredentials.password
+    ) {
+      // Mock successful login as admin
+      router.push("/admin/routes/dashboard"); // Redirect to admin dashboard
+    } else {
+      setError("Invalid credentials. Please try again.");
     }
   };
 
   return (
     <div className="flex flex-col justify-center items-center h-screen">
-      <div className="flex justify-center mb-4">
-        <Image
-          src={Logo}
-          alt="School Logo"
-          className="w-24 h-24"
-          width={96}
-          height={96}
-        />
+      <div className="flex justify-center items-center py-3">
+        <Image alt="Logo" src={Logo} height={100} />
       </div>
       <div className="border border-gray-300 m-4 px-6 py-8 rounded-xl w-full max-w-sm">
         <h2 className="text-2xl font-bold mb-6">Log in</h2>
@@ -73,7 +55,7 @@ const Login: React.FC = () => {
 
         <form onSubmit={handleSubmit}>
           <label htmlFor="idNumber" className="block mb-2">
-            ID number
+            Username
           </label>
           <input
             type="text"
@@ -98,7 +80,7 @@ const Login: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full p-2 mb-4 bg-green-600 text-white rounded-[0.35rem]"
+            className="w-full p-2 mb-4 bg-[black] text-white rounded-[0.35rem]"
           >
             Log in
           </button>

@@ -1,224 +1,248 @@
 "use client";
-
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import AdminLayout from "../../layout";
-import axios from "axios";
 
-interface AttendanceRecord {
+interface Attendance {
   attendance_id: number;
-  first_name: string;
-  last_name: string;
-  tribu: string;
-  event_name: string;
-  event_date: string;
+  employee_name: string;
+  date: string;
   check_in_time: string;
   check_out_time: string;
   status: string;
 }
 
-interface Event {
-  event_id: number;
-  event_name: string;
-}
-
 const Attendance: React.FC = () => {
-  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [filterDate, setFilterDate] = useState<string>("");
+  const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([
+    {
+      attendance_id: 1,
+      employee_name: "John Doe",
+      date: "2024-09-28",
+      check_in_time: "09:00 AM",
+      check_out_time: "05:00 PM",
+      status: "present",
+    },
+    {
+      attendance_id: 2,
+      employee_name: "Jane Doe",
+      date: "2024-09-28",
+      check_in_time: "-",
+      check_out_time: "-",
+      status: "absent",
+    },
+    {
+      attendance_id: 3,
+      employee_name: "Mark Smith",
+      date: "2024-09-28",
+      check_in_time: "09:45 AM",
+      check_out_time: "05:00 PM",
+      status: "late",
+    },
+  ]);
 
-  // Fetch events when component mounts
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await axios.get(
-          "http://localhost/attendance/admin.php?action=fetchEvents"
-        );
-        if (response.data.success) {
-          setEvents(response.data.events);
-          setSelectedEvent(response.data.events[0]?.event_id || null); // Set default event if available
-        }
-      } catch (error) {
-        console.error("Error fetching events:", error);
-      }
-    };
-
-    fetchEvents();
-  }, []);
-
-  // Fetch attendance data whenever selectedEvent changes
-  useEffect(() => {
-    const fetchAttendance = async () => {
-      try {
-        const response = await axios.get(
-          `http://localhost/attendance/admin.php?action=fetchAttendance&event_id=${selectedEvent}`
-        );
-        if (response.data.success) {
-          setAttendanceData(response.data.records);
-        } else {
-          setAttendanceData([]); // If no data, set empty array
-        }
-      } catch (error) {
-        console.error("Error fetching attendance data:", error);
-      }
-    };
-
-    if (selectedEvent) {
-      fetchAttendance();
-    }
-  }, [selectedEvent]);
-
-  // Delete attendance record
-  const handleDelete = async (attendanceId: number) => {
-    try {
-      const response = await axios.post(
-        "http://localhost/attendance/admin.php?action=deleteAttendance",
-        {
-          attendance_id: attendanceId,
-        }
-      );
-      if (response.data.success) {
-        setAttendanceData((prev) =>
-          prev.filter((record) => record.attendance_id !== attendanceId)
-        );
-      }
-    } catch (error) {
-      console.error("Error deleting record:", error);
-    }
-  };
-
-  // Format time to AM/PM
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(":");
-    let hour = parseInt(hours);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    hour = hour % 12 || 12; // Convert to 12-hour format and handle midnight case
-    return `${hour}:${minutes} ${ampm}`;
-  };
-
-  // Filter attendance data by student name and date
-  const filteredData = attendanceData.filter((record) => {
-    const nameMatch = `${record.first_name} ${record.last_name}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const dateMatch = filterDate ? record.event_date === filterDate : true;
-    return nameMatch && dateMatch;
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [viewModalOpen, setViewModalOpen] = useState<boolean>(false);
+  const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
+  const [newAttendance, setNewAttendance] = useState({
+    employee_name: "",
+    date: "",
+    check_in_time: "",
+    check_out_time: "",
+    status: "present",
   });
+
+  // Handle form input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setNewAttendance({
+      ...newAttendance,
+      [name]: value,
+    });
+  };
+
+  // Function to add new attendance record
+  const addAttendance = () => {
+    setAttendanceRecords([...attendanceRecords, { ...newAttendance, attendance_id: Date.now() }]);
+    setIsModalOpen(false);
+  };
+
+  // Function to get status color
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case "present":
+        return "bg-green-100 text-green-600";
+      case "absent":
+        return "bg-red-100 text-red-600";
+      case "late":
+        return "bg-yellow-100 text-yellow-600";
+      default:
+        return "";
+    }
+  };
+
+  // Function to view attendance details
+  const viewDetails = (attendance: Attendance) => {
+    setSelectedAttendance(attendance);
+    setViewModalOpen(true);
+  };
 
   return (
     <AdminLayout>
-      <div className="max-w-7xl mx-auto p-6">
-        <h1 className="text-3xl font-bold mb-4">Attendance Management</h1>
-
-        <div className="mb-4 flex justify-between items-center">
-          <div>
-            <label htmlFor="event" className="mr-2">
-              Select Event:
-            </label>
-            <select
-              id="event"
-              value={selectedEvent || ""}
-              onChange={(e) => setSelectedEvent(Number(e.target.value))}
-              className="p-2 border rounded"
-            >
-              {events.map((event) => (
-                <option key={event.event_id} value={event.event_id}>
-                  {event.event_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <input
-            type="text"
-            placeholder="Search by student name"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 border rounded ml-auto"
-          />
-
-          <input
-            type="date"
-            placeholder="Filter by date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="p-2 border rounded ml-2"
-          />
+      <h1 className="text-xl font-bold mb-3">Attendance</h1>
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex gap-3">
+          <input className="border border-[#999999] p-2 rounded-[5px]" placeholder="Search attendance..." />
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="text-[14px] bg-black text-white px-4 py-2 rounded-[8px] shadow"
+          >
+            Search
+          </button>
         </div>
-
-        <div>
-          <table className="min-w-full table-auto border-collapse">
-            <thead className="sticky">
-              <tr className="border-b">
-                <th className="px-4 py-2 text-left">Student Name</th>
-                <th className="px-4 py-2 text-left">Tribu</th>
-                <th className="px-4 py-2 text-left">Event</th>
-                <th className="px-4 py-2 text-left">Date</th>
-                <th className="px-4 py-2 text-left">IN</th>
-                <th className="px-4 py-2 text-left">OUT</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredData.length > 0 ? (
-                filteredData.map((record) => (
-                  <tr key={record.attendance_id} className="border-b">
-                    <td className="px-4 py-2">{`${record.first_name} ${record.last_name}`}</td>
-                    <td className="px-4 py-2">{record.tribu}</td>
-                    <td className="px-4 py-2">{record.event_name}</td>
-                    <td className="px-4 py-2">{record.event_date}</td>
-                    <td className="px-4 py-2">
-                      {formatTime(record.check_in_time)}
-                    </td>
-                    <td className="px-4 py-2">
-                      {record.check_out_time
-                        ? formatTime(record.check_out_time)
-                        : "Not yet checked out"}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className="bg-[#00800067] border border-[green] p-2 rounded-xl text-[green] text-[0.8rem]">
-                        {" "}
-                        {record.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 relative">
-                      <div className="relative inline-block">
-                        <i
-                          className="bx bx-dots-horizontal-rounded text-2xl cursor-pointer relative"
-                          onClick={(e) => {
-                            const dropdown = e.currentTarget
-                              .nextElementSibling as HTMLElement;
-                            dropdown.classList.toggle("hidden");
-                          }}
-                        ></i>
-                        <div className="absolute bg-white shadow-lg rounded-md mt-1 right-0 w-32 z-50 hidden">
-                          <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(record.attendance_id)}
-                            className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="px-4 py-2 text-center">
-                    No records to show
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="text-[14px] bg-black text-white px-4 py-2 rounded-[8px] shadow"
+        >
+          Add Attendance +
+        </button>
       </div>
+
+      {/* Attendance Table */}
+      <div className="max-h-[400px] overflow-y-auto">
+        <table className="min-w-full table-auto bg-white shadow rounded-lg">
+          <thead className="bg-white sticky top-0 z-10 border-b border-b-[#424242] text-left">
+            <tr>
+              <th className="px-4 py-2 text-sm font-semibold">Employee Name</th>
+              <th className="px-4 py-2 text-sm font-semibold">Date</th>
+              <th className="px-4 py-2 text-sm font-semibold">Check-in Time</th>
+              <th className="px-4 py-2 text-sm font-semibold">Check-out Time</th>
+              <th className="px-4 py-2 text-sm font-semibold">Status</th>
+              <th className="px-4 py-2 text-sm font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {attendanceRecords.map((record) => (
+              <tr key={record.attendance_id} className="border-b relative">
+                <td className="px-4 py-2 text-sm">{record.employee_name}</td>
+                <td className="px-4 py-2 text-sm">{record.date}</td>
+                <td className="px-4 py-2 text-sm">{record.check_in_time}</td>
+                <td className="px-4 py-2 text-sm">{record.check_out_time}</td>
+                <td className="px-4 py-2 text-sm">
+                  <span className={`${getStatusClass(record.status)} px-2 py-1 rounded-full text-xs`}>
+                    {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                  </span>
+                </td>
+                <td className="px-4 py-2 text-sm relative">
+                  {/* Icon Menu for Actions */}
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => viewDetails(record)}>
+                      <i className="bx bx-show text-[black] text-[1rem]"></i>
+                    </button>
+                    <button onClick={() => alert(`Editing ${record.employee_name}`)}>
+                      <i className="bx bx-edit text-[black] text-[1rem]"></i>
+                    </button>
+                    <button onClick={() => alert(`Deleting ${record.employee_name}`)}>
+                      <i className="bx bx-trash text-[black] text-[1rem]"></i>
+                    </button>
+                    <button onClick={() => alert(`Archiving ${record.employee_name}`)}>
+                      <i className="bx bx-archive text-[black] text-[1rem]"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add Attendance Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-[8px] shadow-lg w-1/3">
+            <h2 className="text-xl font-bold mb-4">Add Attendance Record</h2>
+            {/* Attendance Form Fields */}
+            <form className="space-y-4">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  name="employee_name"
+                  placeholder="Employee Name"
+                  className="w-full px-4 py-2 border rounded"
+                  onChange={handleInputChange}
+                />
+              </div>
+              <input
+                type="date"
+                name="date"
+                placeholder="Date"
+                className="w-full px-4 py-2 border rounded"
+                onChange={handleInputChange}
+              />
+              <input
+                type="time"
+                name="check_in_time"
+                placeholder="Check-in Time"
+                className="w-full px-4 py-2 border rounded"
+                onChange={handleInputChange}
+              />
+              <input
+                type="time"
+                name="check_out_time"
+                placeholder="Check-out Time"
+                className="w-full px-4 py-2 border rounded"
+                onChange={handleInputChange}
+              />
+              <select
+                name="status"
+                className="w-full px-4 py-2 border rounded"
+                onChange={handleInputChange}
+              >
+                <option value="present">Present</option>
+                <option value="late">Late</option>
+                <option value="absent">Absent</option>
+              </select>
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="border border-[black] text-[black] px-4 py-2 rounded text-[14px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="bg-[black] text-white px-4 py-2 rounded text-[14px]"
+                  onClick={addAttendance}
+                >
+                  Add Attendance
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Details Modal */}
+      {viewModalOpen && selectedAttendance && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-[8px] shadow-lg w-1/3">
+            <h2 className="text-xl font-bold mb-4">Attendance Details</h2>
+            <div className="space-y-4">
+              <p><strong>Employee Name:</strong> {selectedAttendance.employee_name}</p>
+              <p><strong>Date:</strong> {selectedAttendance.date}</p>
+              <p><strong>Check-in Time:</strong> {selectedAttendance.check_in_time}</p>
+              <p><strong>Check-out Time:</strong> {selectedAttendance.check_out_time}</p>
+              <p><strong>Status:</strong> {selectedAttendance.status.charAt(0).toUpperCase() + selectedAttendance.status.slice(1)}</p>
+            </div>
+            <div className="flex justify-end space-x-2 mt-4">
+              <button
+                onClick={() => setViewModalOpen(false)}
+                className="bg-[black] text-white px-4 py-2 rounded text-[14px]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
